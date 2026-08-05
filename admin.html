@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1020" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Admin | RC QUEST</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <main class="admin-shell">
+    <header class="topbar admin-topbar">
+      <div class="brand-mark">RC</div>
+      <div>
+        <p class="eyebrow">CONTROL CENTER</p>
+        <h1>RC QUEST ADMIN</h1>
+      </div>
+      <a class="icon-button admin-home-link" href="index.html" aria-label="กลับหน้าเกม">←</a>
+    </header>
+
+    <section id="loginPanel" class="admin-login-card">
+      <div class="admin-login-icon">🔐</div>
+      <p class="eyebrow">สำหรับผู้จัดเกม</p>
+      <h2>เข้าสู่ระบบ Admin</h2>
+      <p>กรอกรหัสผ่านเพื่อดูรายงานเวลาและผลการจัดอันดับ</p>
+      <form id="loginForm" novalidate>
+        <label for="adminCode">รหัสผ่าน Admin</label>
+        <input id="adminCode" name="adminCode" type="password" inputmode="numeric" autocomplete="current-password" placeholder="กรอกรหัสผ่าน" required />
+        <button id="loginButton" class="primary-button" type="submit">เข้าสู่ระบบ</button>
+        <p id="loginError" class="admin-error hidden" role="alert"></p>
+      </form>
+    </section>
+
+    <section id="dashboardPanel" class="hidden">
+      <div class="admin-toolbar">
+        <div>
+          <p class="eyebrow">LIVE CONTROL</p>
+          <h2>รายงานการแข่งขัน</h2>
+          <p id="lastUpdate" class="last-update">-</p>
+        </div>
+        <div class="toolbar-actions">
+          <button id="refreshButton" class="secondary-compact" type="button">↻ รีเฟรช</button>
+          <button id="logoutButton" class="danger-compact" type="button">ออกจากระบบ</button>
+        </div>
+      </div>
+
+      <nav class="admin-tabs" aria-label="เมนู Admin">
+        <button class="admin-tab active" type="button" data-tab="overview">ภาพรวม</button>
+        <button class="admin-tab" type="button" data-tab="reports">รายงานทีม</button>
+        <button class="admin-tab" type="button" data-tab="ranking">จัดอันดับ 7 กลุ่ม</button>
+      </nav>
+
+      <section id="tab-overview" class="admin-tab-panel active">
+        <div id="summaryGrid" class="summary-grid"></div>
+        <article class="admin-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">สถานะล่าสุด</p>
+              <h3>ความคืบหน้าทั้ง 14 ทีม</h3>
+            </div>
+            <span class="live-dot">LIVE</span>
+          </div>
+          <div id="overviewTeamGrid" class="overview-team-grid"></div>
+        </article>
+      </section>
+
+      <section id="tab-reports" class="admin-tab-panel">
+        <article class="admin-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">TEAM REPORT</p>
+              <h3>รายงานทีมที่เริ่มและส่งคำตอบแล้ว</h3>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>ทีม</th>
+                  <th>สถานะ</th>
+                  <th>จุดปัจจุบัน</th>
+                  <th>เริ่ม</th>
+                  <th>ส่งสำเร็จ</th>
+                  <th>เวลาที่ใช้</th>
+                  <th>ตอบผิด</th>
+                </tr>
+              </thead>
+              <tbody id="teamReportBody"></tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <section id="tab-ranking" class="admin-tab-panel">
+        <article class="admin-card ranking-intro">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">OFFICIAL RANKING</p>
+              <h3>อันดับ 7 กลุ่มใหญ่</h3>
+            </div>
+            <span class="pair-rule">รวมเวลา 2 ทีม</span>
+          </div>
+          <p>ระบบรวมเวลาอัตโนมัติเป็นคู่: 1+2, 3+4, 5+6, 7+8, 9+10, 11+12 และ 13+14 แล้วเรียงจากเวลารวมน้อยที่สุด</p>
+        </article>
+
+        <section id="groupRankingList" class="group-ranking-list"></section>
+
+        <article class="admin-card calculator-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">PAIR CALCULATOR</p>
+              <h3>ทดลองรวมเวลา 2 ทีม</h3>
+            </div>
+          </div>
+          <div class="calculator-grid">
+            <label>
+              ทีมที่ 1
+              <select id="teamSelectA"></select>
+            </label>
+            <span class="plus-sign">+</span>
+            <label>
+              ทีมที่ 2
+              <select id="teamSelectB"></select>
+            </label>
+            <button id="calculatePairButton" class="primary-button" type="button">คำนวณเวลารวม</button>
+          </div>
+          <div id="pairCalculationResult" class="pair-calculation-result hidden"></div>
+        </article>
+      </section>
+
+      <div id="dashboardError" class="dashboard-error hidden" role="alert"></div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

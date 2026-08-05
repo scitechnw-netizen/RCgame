@@ -18,7 +18,6 @@
   const answerForm = document.getElementById("answerForm");
   const answerInput = document.getElementById("answerInput");
   const submitButton = document.getElementById("submitButton");
-  const leaderboardButton = document.getElementById("leaderboardButton");
   const infoDialog = document.getElementById("infoDialog");
   const closeDialogButton = document.getElementById("closeDialogButton");
   const resumeHelpButton = document.getElementById("resumeHelpButton");
@@ -353,7 +352,6 @@
 
   startButton.addEventListener("click", startGame);
   answerForm.addEventListener("submit", submitAnswer);
-  leaderboardButton.addEventListener("click", () => { window.location.href = "results.html"; });
   resumeHelpButton.addEventListener("click", () => infoDialog.showModal());
   closeDialogButton.addEventListener("click", () => infoDialog.close());
   reloadButton.addEventListener("click", () => window.location.reload());
