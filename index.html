@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1020" />
+  <meta name="description" content="เกมตามหา RC วิทยาศาสตร์ โรงเรียนหนองหานวิทยา" />
+  <title>RC QUEST | เกมตามหา RC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="ambient ambient-a"></div>
+  <div class="ambient ambient-b"></div>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand-mark">RC</div>
+      <div>
+        <p class="eyebrow">SCIENCE MISSION</p>
+        <h1>RC QUEST</h1>
+      </div>
+      <button id="leaderboardButton" class="icon-button" type="button" aria-label="ดูตารางอันดับ">🏆</button>
+    </header>
+
+    <section id="loadingScreen" class="screen active center-screen" aria-live="polite">
+      <div class="loader"></div>
+      <h2>กำลังเตรียมภารกิจ...</h2>
+      <p>กรุณาตรวจสอบสัญญาณอินเทอร์เน็ต</p>
+    </section>
+
+    <section id="setupScreen" class="screen">
+      <div class="hero-card">
+        <div class="hero-icon">🛰️</div>
+        <p class="eyebrow">เกมตามหา RC</p>
+        <h2>เลือกทีมของนักเรียน</h2>
+        <p>เลือกทีมให้ถูกต้อง แล้วกด “เริ่มเกม” เพื่อเริ่มจับเวลา</p>
+      </div>
+
+      <div id="teamGrid" class="team-grid" aria-label="รายชื่อทีม"></div>
+
+      <button id="startButton" class="primary-button sticky-action" type="button" disabled>
+        <span>เริ่มเกม</span>
+        <span aria-hidden="true">➜</span>
+      </button>
+      <p class="microcopy">หนึ่งทีมเริ่มเกมได้จากอุปกรณ์เดียว กรุณาอย่าปิดหรือเปลี่ยนเบราว์เซอร์ระหว่างเล่น</p>
+    </section>
+
+    <section id="gameScreen" class="screen">
+      <div class="status-card">
+        <div>
+          <p class="status-label">ทีม</p>
+          <h2 id="currentTeamName">-</h2>
+        </div>
+        <div class="timer-box">
+          <span class="status-label">เวลา</span>
+          <strong id="timer">00:00:00</strong>
+        </div>
+      </div>
+
+      <div class="progress-card">
+        <div class="progress-meta">
+          <span id="phaseBadge" class="phase-badge">ภารกิจ</span>
+          <strong id="progressText">จุดที่ 1 / 14</strong>
+        </div>
+        <div class="progress-track" aria-hidden="true">
+          <div id="progressBar" class="progress-bar"></div>
+        </div>
+      </div>
+
+      <article id="missionCard" class="mission-card">
+        <div id="missionIcon" class="mission-icon">🔐</div>
+        <p id="missionKicker" class="eyebrow">คำถามเปิดสถานที่</p>
+        <h2 id="missionTitle">ตอบคำถามเพื่อรับคำใบ้</h2>
+        <p id="missionText" class="mission-text"></p>
+
+        <div id="clueBox" class="clue-box hidden">
+          <span>คำใบ้สถานที่</span>
+          <strong id="clueText"></strong>
+        </div>
+
+        <p id="redInstruction" class="red-instruction hidden">ให้ไปอ่านโจทย์ที่สถานที่ในคำใบ้</p>
+
+        <form id="answerForm" novalidate>
+          <label id="answerLabel" for="answerInput">กรอกคำตอบเป็นตัวเลข</label>
+          <div class="answer-row">
+            <input
+              id="answerInput"
+              name="answer"
+              type="text"
+              inputmode="decimal"
+              autocomplete="off"
+              enterkeyhint="send"
+              placeholder="กรอกตัวเลข"
+              aria-describedby="answerHelp"
+              required
+            />
+            <button id="submitButton" class="primary-button submit-button" type="submit">ส่งคำตอบ</button>
+          </div>
+          <p id="answerHelp" class="microcopy">พิมพ์ได้ทั้ง 397765.6 หรือ 397,765.6</p>
+        </form>
+      </article>
+
+      <button id="resumeHelpButton" class="text-button" type="button">พบปัญหาในการเล่น?</button>
+    </section>
+
+    <section id="completeScreen" class="screen center-screen">
+      <div class="celebration">🎉</div>
+      <p class="eyebrow">MISSION COMPLETE</p>
+      <h2>ยินดีด้วย! เกมจบแล้ว</h2>
+      <p id="completeTeamName" class="complete-team"></p>
+      <div class="finish-time-card">
+        <span>เวลาที่ใช้</span>
+        <strong id="finishTime">00:00:00</strong>
+      </div>
+      <div class="return-card">
+        <span class="return-icon">📍</span>
+        <div>
+          <small>จุดนัดหมาย</small>
+          <strong>ให้กลับไปที่หอประชุมเจ้าปู่หอคำ</strong>
+        </div>
+      </div>
+      <a class="secondary-button" href="results.html">ดูตารางอันดับ</a>
+    </section>
+
+    <section id="errorScreen" class="screen center-screen">
+      <div class="error-icon">⚠️</div>
+      <h2>ไม่สามารถเปิดเกมได้</h2>
+      <p id="fatalErrorText"></p>
+      <button id="reloadButton" class="primary-button" type="button">ลองใหม่</button>
+    </section>
+  </main>
+
+  <div id="feedbackOverlay" class="feedback-overlay" role="status" aria-live="assertive">
+    <div id="feedbackCard" class="feedback-card">
+      <span id="feedbackIcon">✓</span>
+      <strong id="feedbackTitle">ตอบถูก!</strong>
+      <p id="feedbackMessage"></p>
+    </div>
+  </div>
+
+  <dialog id="infoDialog" class="info-dialog">
+    <button id="closeDialogButton" class="dialog-close" type="button" aria-label="ปิด">×</button>
+    <h3>คำแนะนำ</h3>
+    <p>ห้ามกดปุ่มย้อนกลับหรือเปิดเกมซ้ำหลายเครื่อง หากหน้าเว็บรีเฟรช ระบบจะพยายามกลับเข้าสู่ภารกิจเดิมโดยอัตโนมัติ</p>
+    <p>หากทีมถูกใช้งานจากอุปกรณ์อื่น ให้ติดต่อผู้จัดเกมเพื่อตรวจสอบใน Supabase</p>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

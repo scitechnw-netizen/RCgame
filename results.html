@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#0b1020" />
+  <title>ตารางอันดับ | RC QUEST</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .results-header { text-align: center; margin: 20px 0; }
+    .results-header h2 { margin: 6px 0; font-size: clamp(1.8rem, 8vw, 2.8rem); }
+    .results-header p { color: var(--muted); }
+    .results-list { display: grid; gap: 12px; }
+    .result-row { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: 0 12px 30px rgba(0,0,0,.2); }
+    .rank { display: grid; width: 46px; height: 46px; place-items: center; border-radius: 14px; background: var(--surface-soft); font-weight: 900; }
+    .result-row:nth-child(1) .rank { color: #251800; background: #ffd86a; }
+    .result-row:nth-child(2) .rank { color: #16202b; background: #d9e1ea; }
+    .result-row:nth-child(3) .rank { color: #251408; background: #d99a62; }
+    .team-name { font-weight: 800; }
+    .finish-label { display: block; color: var(--muted); font-size: .72rem; }
+    .result-time { color: var(--primary); font-weight: 900; font-variant-numeric: tabular-nums; }
+    .empty-results { padding: 40px 20px; border: 1px dashed var(--border); border-radius: 22px; color: var(--muted); text-align: center; }
+    .results-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+    .results-actions button, .results-actions a { min-height: 52px; }
+    .last-update { margin-top: 14px; color: var(--muted); font-size: .75rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand-mark">RC</div>
+      <div><p class="eyebrow">LIVE RESULTS</p><h1>RC QUEST</h1></div>
+      <a class="icon-button" href="index.html" aria-label="กลับหน้าเกม" style="display:grid;place-items:center;text-decoration:none">←</a>
+    </header>
+
+    <section class="results-header">
+      <div class="hero-icon">🏆</div>
+      <p class="eyebrow">ตารางอันดับ</p>
+      <h2>ทีมที่จบภารกิจ</h2>
+      <p>เรียงตามเวลาที่ใช้จากน้อยไปมาก</p>
+    </section>
+
+    <section id="resultsList" class="results-list">
+      <div class="empty-results">กำลังโหลดผลการแข่งขัน...</div>
+    </section>
+
+    <div class="results-actions">
+      <a class="secondary-button" href="index.html" style="margin:0">กลับหน้าเกม</a>
+      <button id="refreshButton" class="primary-button" type="button">รีเฟรช</button>
+    </div>
+    <p id="lastUpdate" class="last-update"></p>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+  <script>
+    const list = document.getElementById("resultsList");
+    const lastUpdate = document.getElementById("lastUpdate");
+    const refreshButton = document.getElementById("refreshButton");
+
+    function formatDuration(totalSeconds) {
+      const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
+      const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
+      const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+      const s = String(seconds % 60).padStart(2, "0");
+      return `${h}:${m}:${s}`;
+    }
+
+    async function loadResults() {
+      refreshButton.disabled = true;
+      try {
+        const cfg = window.RC_CONFIG || {};
+        if (!window.supabase || !cfg.SUPABASE_URL || cfg.SUPABASE_URL.includes("YOUR_PROJECT_ID")) {
+          throw new Error("ยังไม่ได้ตั้งค่า Supabase ใน config.js");
+        }
+        const client = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+        const { data, error } = await client.rpc("get_leaderboard");
+        if (error) throw error;
+
+        if (!data?.length) {
+          list.innerHTML = '<div class="empty-results">ยังไม่มีทีมจบภารกิจ</div>';
+        } else {
+          list.innerHTML = data.map((row) => `
+            <article class="result-row">
+              <div class="rank">${row.rank_no}</div>
+              <div><span class="finish-label">ทีม</span><div class="team-name">${escapeHtml(row.team_name)}</div></div>
+              <div class="result-time">${formatDuration(row.elapsed_seconds)}</div>
+            </article>
+          `).join("");
+        }
+        lastUpdate.textContent = `อัปเดตล่าสุด ${new Date().toLocaleTimeString("th-TH")}`;
+      } catch (error) {
+        list.innerHTML = `<div class="empty-results">${escapeHtml(error.message || String(error))}</div>`;
+      } finally {
+        refreshButton.disabled = false;
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
+    }
+
+    refreshButton.addEventListener("click", loadResults);
+    loadResults();
+    setInterval(loadResults, 15000);
+  </script>
+</body>
+</html>
