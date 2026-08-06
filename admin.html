@@ -56,6 +56,7 @@
         <button class="admin-tab active" type="button" data-tab="overview">ภาพรวม</button>
         <button class="admin-tab" type="button" data-tab="reports">รายงานทีม</button>
         <button class="admin-tab" type="button" data-tab="ranking">จัดอันดับ 7 กลุ่ม</button>
+        <button class="admin-tab" type="button" data-tab="manage">เคลียร์รอบเล่น</button>
       </nav>
 
       <section id="tab-overview" class="admin-tab-panel active">
@@ -133,6 +134,36 @@
             <button id="calculatePairButton" class="primary-button" type="button">คำนวณเวลารวม</button>
           </div>
           <div id="pairCalculationResult" class="pair-calculation-result hidden"></div>
+        </article>
+      </section>
+
+
+      <section id="tab-manage" class="admin-tab-panel">
+        <article class="admin-card reset-intro-card">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">ROUND MANAGEMENT</p>
+              <h3>เคลียร์ทีมที่เล่นจบแล้ว</h3>
+            </div>
+            <span class="danger-badge">ADMIN ONLY</span>
+          </div>
+          <p>เมื่อเคลียร์แล้ว ทีมดังกล่าวจะกลับไปอยู่สถานะ “ยังไม่เริ่ม” และสามารถให้นักเรียนชุดใหม่เลือกเล่นต่อได้ทันที</p>
+          <p class="reset-warning">ผลเวลาและอันดับของทีมที่เคลียร์จะถูกนำออกจากรายงานรอบปัจจุบัน กรุณาบันทึกผลก่อนดำเนินการ</p>
+        </article>
+
+        <article class="admin-card reset-card">
+          <div class="reset-toolbar">
+            <div>
+              <strong id="selectedResetCount">เลือกไว้ 0 ทีม</strong>
+              <span>เลือกได้เฉพาะทีมที่ส่งสำเร็จแล้ว</span>
+            </div>
+            <div class="reset-actions">
+              <button id="clearSelectedButton" class="danger-action" type="button" disabled>เคลียร์ทีมที่เลือก</button>
+              <button id="clearAllCompletedButton" class="danger-outline-action" type="button">เคลียร์ทีมที่จบแล้วทั้งหมด</button>
+            </div>
+          </div>
+          <div id="resetTeamGrid" class="reset-team-grid"></div>
+          <div id="resetResult" class="reset-result hidden" role="status"></div>
         </article>
       </section>
 

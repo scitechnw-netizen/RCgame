@@ -16,12 +16,19 @@
   const teamSelectA = document.getElementById("teamSelectA");
   const teamSelectB = document.getElementById("teamSelectB");
   const pairCalculationResult = document.getElementById("pairCalculationResult");
+  const resetTeamGrid = document.getElementById("resetTeamGrid");
+  const selectedResetCount = document.getElementById("selectedResetCount");
+  const clearSelectedButton = document.getElementById("clearSelectedButton");
+  const clearAllCompletedButton = document.getElementById("clearAllCompletedButton");
+  const resetResult = document.getElementById("resetResult");
 
   let client = null;
   let adminCode = "";
   let dashboardData = null;
   let refreshTimer = null;
   let isLoading = false;
+  let isResetting = false;
+  const selectedResetTeamIds = new Set();
 
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>'"]/g, (char) => ({
@@ -88,6 +95,8 @@
     const message = String(error?.message || error || "เกิดข้อผิดพลาด");
     if (message.includes("ADMIN_DENIED")) return "รหัสผ่าน Admin ไม่ถูกต้อง";
     if (message.includes("ADMIN_NOT_READY")) return "ยังไม่ได้ติดตั้งส่วน Admin ใน Supabase";
+    if (message.includes("NO_COMPLETED_TEAMS")) return "ไม่มีทีมที่เล่นจบแล้วให้เคลียร์";
+    if (message.includes("INVALID_TEAM_LIST")) return "รายการทีมที่เลือกไม่ถูกต้อง";
     if (message.includes("Failed to fetch")) return "เชื่อมต่อ Supabase ไม่สำเร็จ กรุณาตรวจสอบอินเทอร์เน็ต";
     return message;
   }
@@ -208,6 +217,62 @@
     if (teams.length > 1) teamSelectB.selectedIndex = 1;
   }
 
+  function updateResetSelectionUi() {
+    const count = selectedResetTeamIds.size;
+    const teams = Array.isArray(dashboardData?.teams) ? dashboardData.teams : [];
+    const hasCompletedTeams = teams.some((team) => team.status === "completed");
+    selectedResetCount.textContent = `เลือกไว้ ${count} ทีม`;
+    clearSelectedButton.disabled = isResetting || count === 0;
+    clearAllCompletedButton.disabled = isResetting || !hasCompletedTeams;
+  }
+
+  function renderResetTeams(teams) {
+    const validCompletedIds = new Set(
+      teams.filter((team) => team.status === "completed").map((team) => Number(team.team_id))
+    );
+    [...selectedResetTeamIds].forEach((id) => {
+      if (!validCompletedIds.has(id)) selectedResetTeamIds.delete(id);
+    });
+
+    resetTeamGrid.innerHTML = teams.map((team) => {
+      const completed = team.status === "completed";
+      const checked = selectedResetTeamIds.has(Number(team.team_id));
+      const meta = statusMeta(team.status);
+      const detail = completed
+        ? `เวลาที่ใช้ ${formatDuration(team.elapsed_seconds)}`
+        : team.status === "playing"
+          ? `กำลังเล่น • จุด ${team.current_step || 1}/14`
+          : "ยังไม่มีรอบเล่น";
+      return `
+        <label class="reset-team-item ${completed ? "can-reset" : "disabled"}">
+          <input
+            class="reset-team-checkbox"
+            type="checkbox"
+            value="${team.team_id}"
+            ${checked ? "checked" : ""}
+            ${completed ? "" : "disabled"}
+          />
+          <span class="reset-checkmark" aria-hidden="true"></span>
+          <span class="reset-team-content">
+            <strong>${escapeHtml(team.team_name)}</strong>
+            <small>${escapeHtml(detail)}</small>
+          </span>
+          <span class="status-pill ${meta.className}">${meta.label}</span>
+        </label>
+      `;
+    }).join("");
+
+    resetTeamGrid.querySelectorAll(".reset-team-checkbox").forEach((checkbox) => {
+      checkbox.addEventListener("change", () => {
+        const id = Number(checkbox.value);
+        if (checkbox.checked) selectedResetTeamIds.add(id);
+        else selectedResetTeamIds.delete(id);
+        updateResetSelectionUi();
+      });
+    });
+    updateResetSelectionUi();
+  }
+
   function renderDashboard(data) {
     dashboardData = data;
     const teams = Array.isArray(data?.teams) ? data.teams : [];
@@ -217,6 +282,7 @@
     renderTeamReport(teams);
     renderGroupRanking(groups);
     populateTeamSelectors(teams);
+    renderResetTeams(teams);
     lastUpdate.textContent = `อัปเดตล่าสุด ${new Date().toLocaleString("th-TH")}`;
   }
 
@@ -248,7 +314,7 @@
   }
 
   function switchTab(tabName) {
-    const allowed = new Set(["overview", "reports", "ranking"]);
+    const allowed = new Set(["overview", "reports", "ranking", "manage"]);
     const target = allowed.has(tabName) ? tabName : "overview";
     document.querySelectorAll(".admin-tab").forEach((button) => {
       button.classList.toggle("active", button.dataset.tab === target);
@@ -282,6 +348,46 @@
       ${escapeHtml(teamB.team_name)} ${formatDuration(teamB.elapsed_seconds)}
       <strong>${formatDuration(total)}</strong>
     `;
+  }
+
+  function setResetBusy(value) {
+    isResetting = value;
+    clearAllCompletedButton.disabled = value;
+    clearAllCompletedButton.textContent = value ? "กำลังเคลียร์..." : "เคลียร์ทีมที่จบแล้วทั้งหมด";
+    clearSelectedButton.textContent = value ? "กำลังเคลียร์..." : "เคลียร์ทีมที่เลือก";
+    updateResetSelectionUi();
+  }
+
+  async function clearCompletedTeams(teamIds = null) {
+    if (isResetting) return;
+    const ids = Array.isArray(teamIds) ? teamIds.map(Number).filter(Number.isInteger) : null;
+    const message = ids
+      ? `ยืนยันเคลียร์ทีมที่เลือกจำนวน ${ids.length} ทีมใช่หรือไม่?\n\nเวลาและอันดับของทีมเหล่านี้จะถูกลบออกจากรอบปัจจุบัน`
+      : "ยืนยันเคลียร์ทีมที่เล่นจบแล้วทั้งหมดใช่หรือไม่?\n\nเวลาและอันดับทั้งหมดของทีมที่จบแล้วจะถูกลบออกจากรอบปัจจุบัน";
+    if (!window.confirm(message)) return;
+
+    setResetBusy(true);
+    resetResult.classList.add("hidden");
+    dashboardError.classList.add("hidden");
+    try {
+      const { data, error } = await client.rpc("clear_completed_sessions", {
+        p_admin_code: adminCode,
+        p_team_ids: ids
+      });
+      if (error) throw error;
+      const clearedCount = Number(data?.cleared_count || 0);
+      selectedResetTeamIds.clear();
+      resetResult.textContent = `เคลียร์สำเร็จ ${clearedCount} ทีม นักเรียนชุดใหม่สามารถเลือกทีมเหล่านี้เล่นต่อได้แล้ว`;
+      resetResult.classList.remove("hidden", "error");
+      await loadDashboard();
+      switchTab("manage");
+    } catch (error) {
+      resetResult.textContent = mapError(error);
+      resetResult.classList.remove("hidden");
+      resetResult.classList.add("error");
+    } finally {
+      setResetBusy(false);
+    }
   }
 
   async function initialize() {
@@ -346,6 +452,8 @@
     showLogin();
   });
   calculatePairButton.addEventListener("click", calculatePair);
+  clearSelectedButton.addEventListener("click", () => clearCompletedTeams([...selectedResetTeamIds]));
+  clearAllCompletedButton.addEventListener("click", () => clearCompletedTeams(null));
   window.addEventListener("hashchange", () => switchTab(location.hash.replace("#", "") || "overview"));
 
   initialize();
