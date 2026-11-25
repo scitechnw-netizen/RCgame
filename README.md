@@ -4,17 +4,19 @@
 ## 1. สร้าง Supabase project
 1. เปิด https://supabase.com/dashboard สร้าง project ใหม่สำหรับระบบนี้โดยเฉพาะ
 2. ไป SQL Editor > New query วางเนื้อหา schema.sql ทั้งไฟล์ แล้ว Run (สร้างตารางส่วนตัว, RPC, สิทธิ์)
-3. ไป Authentication > Users > Add user > Create new user สร้างบัญชีด้วยอีเมลของครูที่ใช้งานจริง ตั้งรหัสผ่านที่รัดกุมและยืนยันอีเมล (Auto Confirm User หากมีตัวเลือก) ตามที่ต้องการ หน้าเว็บจะให้กรอกเฉพาะรหัสผ่าน โดยใช้อีเมลจาก config.js
-4. กลับ SQL Editor แล้วรันบรรทัดต่อไปนี้ โดยเปลี่ยน YOUR_ADMIN_EMAIL เป็นอีเมลเดียวกับข้อ 3:
+3. ไป Authentication > Users > Add user > Create new user สร้างบัญชีภายในด้วยอีเมลสมมติ `student-admin@example.com` (ไม่ต้องมีอีเมลจริง) ตั้งรหัสผ่านที่รัดกุม แล้วเลือก Auto Confirm User เพื่อสร้างบัญชีโดยไม่ส่งอีเมลยืนยัน ห้ามเลือก Invite user หน้าเว็บจะให้กรอกเฉพาะรหัสผ่าน โดยใช้อีเมลที่ตั้งไว้ใน config.js
+4. กลับ SQL Editor แล้วรันบรรทัดต่อไปนี้ โดยใช้คำสั่งนี้ได้เลยหากใช้อีเมลสมมติตามข้อ 3:
 
 ```sql
 insert into student_private.admins(user_id)
-select id from auth.users where email='YOUR_ADMIN_EMAIL' on conflict do nothing;
+select id from auth.users where email='student-admin@example.com' on conflict do nothing;
 ```
 ตรวจสอบว่าพบบัญชีจริงด้วย `select user_id from student_private.admins;` (ควรได้อย่างน้อย 1 แถว)
 5. ปิดการสมัครบัญชีสาธารณะใน Authentication settings (ระบบนี้ไม่ต้องให้นักเรียนสมัครบัญชี)
 6. ใน Project Settings / Connect / API Keys คัดลอก Project URL และ publishable key หรือ legacy anon key เท่านั้น ห้ามใช้ secret หรือ service_role key
-7. เปิด config.js ด้วย Notepad หรือ VS Code แทนค่า supabaseUrl, supabaseKey และ adminEmail ให้ตรงกับโครงการ บันทึกไฟล์
+7. เปิด config.js ด้วย Notepad หรือ VS Code แทนค่า supabaseUrl และ supabaseKey เท่านั้น (adminEmail ตั้งไว้เป็น student-admin@example.com แล้ว) บันทึกไฟล์
+
+หมายเหตุ: บัญชีสมมตินี้ไม่มีช่องทางกู้รหัสผ่านผ่านอีเมล หากลืมรหัสให้ผู้ดูแลโครงการ Supabase จัดการบัญชีหรือสร้างบัญชีใหม่และกำหนดสิทธิ์ใหม่ผ่าน Dashboard/SQL Editor อย่าเปิดสมัครสมาชิกสาธารณะ
 
 ## 2. GitHub Pages
 1. สร้าง repository ใหม่ที่ https://github.com/new เช่น student-profile

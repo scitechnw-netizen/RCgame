@@ -81,7 +81,7 @@ revoke all on function public.sp_settings(),public.sp_lookup(text,text),public.s
 grant execute on function public.sp_settings(),public.sp_lookup(text,text),public.sp_submit(text,text,text,text,text) to anon,authenticated;
 grant execute on function public.sp_admin_check(),public.sp_admin_report(),public.sp_admin_photo(text),public.sp_admin_codes(),public.sp_admin_import(jsonb),public.sp_admin_reset(text) to authenticated;
 commit;
--- After creating Admin in Authentication > Users, run separately (replace email):
--- insert into student_private.admins(user_id) select id from auth.users where email='YOUR_ADMIN_EMAIL' on conflict do nothing;
+-- After creating Admin in Authentication > Users, run separately (using the preconfigured internal email):
+-- insert into student_private.admins(user_id) select id from auth.users where email='student-admin@example.com' on conflict do nothing;
 -- Optional ID-only mode (NOT recommended for real student data):
 -- update student_private.settings set require_code=false where singleton;
