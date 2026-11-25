@@ -23,7 +23,7 @@ $('lookupForm').onsubmit=e=>{e.preventDefault();const id=$('studentId').value.tr
 async function compress(file){if(!file||!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>20*1024*1024)throw Error('กรุณาเลือก JPG, PNG หรือ WebP ขนาดไม่เกิน 20 MB');const url=URL.createObjectURL(file);try{const img=new Image();img.src=url;await img.decode();let ratio=Math.min(1,1000/Math.max(img.naturalWidth,img.naturalHeight));const canvas=document.createElement('canvas');for(let i=0;i<7;i++){canvas.width=Math.max(1,Math.round(img.naturalWidth*ratio));canvas.height=Math.max(1,Math.round(img.naturalHeight*ratio));const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);for(const quality of [.82,.65,.48]){const b64=canvas.toDataURL('image/jpeg',quality).split(',')[1];if(b64&&b64.length<=409600)return b64;}ratio*=.75;}throw Error('ไม่สามารถย่อภาพได้ กรุณาเลือกภาพขนาดเล็กกว่า');}finally{URL.revokeObjectURL(url);}}
 $('photo').onchange=async()=>{const gen=++photoGeneration;photoData='';$('preview').hidden=true;$('preview').removeAttribute('src');$('uploadHint').hidden=false;const f=$('photo').files[0];if(!f)return;$('submitBtn').disabled=true;try{const b64=await compress(f);if(gen!==photoGeneration)return;photoData=b64;$('preview').src='data:image/jpeg;base64,'+b64;$('preview').hidden=false;$('uploadHint').hidden=true;msg('studentMsg');}catch(e){if(gen===photoGeneration){$('photo').value='';msg('studentMsg',e.message,'error');}}finally{if(gen===photoGeneration)$('submitBtn').disabled=false;}};
 $('submitForm').onsubmit=e=>{e.preventDefault();if(!selected||!photoData){msg('studentMsg','กรุณาเลือกภาพและกรอกข้อมูลให้ครบ','error');return;}const s=selected,code=$('studentCode').value.trim(),nick=$('nickname').value.trim(),phone=$('phone').value.trim();if(!nick||!/^0\d{9}$/.test(phone)){msg('studentMsg','กรุณากรอกชื่อเล่นและเบอร์โทร 10 หลักให้ถูกต้อง','error');return;}busy($('submitBtn'),async()=>{const r=await rpc('sp_submit',{p_id:s.student_id,p_code:code,p_nickname:nick,p_phone:phone,p_photo:photoData});if(selected!==s)return;if(!r?.submitted)throw Error('SUBMIT_FAILED');photoData='';$('submitForm').reset();$('preview').removeAttribute('src');$('preview').hidden=true;$('uploadHint').hidden=false;showStudent({...s,submitted:true});msg('studentMsg',r.already?'ข้อมูลนี้ถูกส่งแล้ว':'บันทึกข้อมูลสำเร็จ','success');},studentError);};
-function clearReport(){activeRoom='';reportGeneration++;photoCache.clear();filtered=[];$('reportBody').replaceChildren();$('reportResults').hidden=true;$('reportPlaceholder').hidden=false;$('statusFilter').value='';$('searchFilter').value='';$('photoProgress').textContent='';$('showReportBtn').disabled=!isAdmin||!$('roomFilter').value;updateStats(roster);}
+function clearReport(){clearPrintReport();activeRoom='';reportGeneration++;photoCache.clear();filtered=[];$('reportBody').replaceChildren();$('reportResults').hidden=true;$('reportPlaceholder').hidden=false;$('statusFilter').value='';$('searchFilter').value='';$('photoProgress').textContent='';$('showReportBtn').disabled=!isAdmin||!$('roomFilter').value;updateStats(roster);}
 function setAdmin(on){isAdmin=on;$('dashboard').hidden=!on;$('loginCard').hidden=on;if(!on){refreshGeneration++;roster=[];$('roomFilter').replaceChildren(new Option('— เลือกห้องเรียน —',''));clearReport();$('adminPhoto').removeAttribute('src');currentPhoto=null;if($('photoDialog').open)$('photoDialog').close();}}
 $('loginForm').onsubmit=e=>{e.preventDefault();busy($('loginBtn'),async()=>{if(!db)throw Error('ยังไม่ได้ตั้งค่า Supabase');const password=$('password').value;$('password').value='';const {error}=await db.auth.signInWithPassword({email:cfg.adminEmail,password});if(error){const code=error.code||'';const explanations={invalid_credentials:'อีเมลบัญชีผู้ดูแลหรือรหัสผ่านไม่ตรงกับ Supabase',email_not_confirmed:'บัญชีผู้ดูแลยังไม่ได้ยืนยัน (ให้สร้างด้วย Auto Confirm User)',email_provider_disabled:'ยังไม่ได้เปิด Email provider ใน Supabase',over_request_rate_limit:'ลองเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่',user_banned:'บัญชีผู้ดูแลถูกระงับ',unexpected_failure:'Supabase พบข้อผิดพลาดภายใน'};throw Error((explanations[code]||error.message||'ไม่สามารถเข้าสู่ระบบได้')+' ['+(code||error.status||'AUTH_ERROR')+']');}try{await rpc('sp_admin_check');}catch(e){await db.auth.signOut();throw e;}setAdmin(true);msg('adminMsg');await refresh();},adminError);};
 $('logoutBtn').onclick=()=>busy($('logoutBtn'),async()=>{setAdmin(false);await db.auth.signOut();msg('adminMsg');},adminError);
@@ -39,14 +39,64 @@ function action(text,handler,extra=''){const b=document.createElement('button');
 function render(){if(!isAdmin||!activeRoom)return;const generation=++reportGeneration,st=$('statusFilter').value,q=$('searchFilter').value.trim().toLowerCase();const group=roster.filter(r=>r.room===activeRoom);updateStats(group);filtered=group.filter(r=>(!st||(st==='sent')===!!r.submitted_at)&&(!q||(r.student_id+' '+r.full_name+' '+(r.nickname||'')).toLowerCase().includes(q)));$('reportCount').textContent='แสดง '+filtered.length+' จาก '+group.length+' คน';const frag=document.createDocumentFragment(),jobs=[];for(const r of filtered){const tr=document.createElement('tr');const pic=cell(tr,'');pic.className='photo-cell';const holder=document.createElement(r.submitted_at?'button':'span');holder.className='student-thumb';if(r.submitted_at){holder.type='button';holder.title='เปิดรูป '+r.full_name;holder.setAttribute('aria-label','เปิดรูป '+r.full_name);holder.onclick=()=>openPhoto(r);holder.textContent='กำลังโหลด';jobs.push({r,holder});}else{holder.textContent='—';holder.title='ยังไม่ส่งรูป';}pic.append(holder);for(const v of [r.seat_no,r.student_id,r.full_name,r.room,r.nickname,r.phone])cell(tr,v);const td=cell(tr,'');const badge=document.createElement('span');badge.className='pill'+(r.submitted_at?' done':'');badge.textContent=status(r);td.append(badge);cell(tr,date(r.submitted_at));const a=cell(tr,'');a.className='noPrint';if(r.submitted_at){a.append(action('ดูรูป',()=>openPhoto(r)),action('เปิดให้ส่งใหม่',()=>resetSubmission(r),'danger'));}else a.textContent='—';frag.append(tr);}if(!filtered.length){const tr=document.createElement('tr');const td=cell(tr,'ไม่พบข้อมูลนักเรียน');td.colSpan=10;frag.append(tr);}$('reportBody').replaceChildren(frag);loadReportPhotos(jobs,generation);}
 async function loadReportPhotos(jobs,generation){let next=0,finished=0,failed=0;const valid=()=>isAdmin&&generation===reportGeneration;const progress=()=>{if(!valid())return;$('photoProgress').textContent=jobs.length?(finished===jobs.length?'โหลดรูปแล้ว '+(finished-failed)+'/'+jobs.length+(failed?' • โหลดไม่สำเร็จ '+failed+' รูป (กดดูรูปเพื่อลองใหม่)':''):'กำลังโหลดรูป '+finished+'/'+jobs.length):'ไม่มีรูปที่ส่ง';$('printBtn').disabled=finished<jobs.length;};progress();async function worker(){while(valid()&&next<jobs.length){const {r,holder}=jobs[next++];try{let data=photoCache.get(r.student_id);if(!data)data=await rpc('sp_admin_photo',{p_id:r.student_id});if(!valid())return;if(!data)throw Error('NO_PHOTO');const img=document.createElement('img');img.alt='รูป '+r.full_name;img.src='data:image/jpeg;base64,'+data;await img.decode();if(!valid())return;photoCache.set(r.student_id,data);holder.replaceChildren(img);}catch(e){if(!valid())return;failed++;holder.textContent='ดูรูป';holder.classList.add('photo-failed');}finished++;progress();}}await Promise.all(Array.from({length:Math.min(4,jobs.length)},worker));}
 for(const id of ['statusFilter','searchFilter'])$(id).addEventListener('input',render);
-async function openPhoto(r){try{const gen=reportGeneration;const data=photoCache.get(r.student_id)||await rpc('sp_admin_photo',{p_id:r.student_id});if(!isAdmin||gen!==reportGeneration)return;if(!data)throw Error('ไม่พบรูป');currentPhoto={id:r.student_id,data};$('photoTitle').textContent=r.full_name;$('adminPhoto').src='data:image/jpeg;base64,'+data;$('photoDialog').showModal();}catch(e){adminError(e);}}
+async function openPhoto(r){try{const gen=reportGeneration;const data=photoCache.get(r.student_id)||await rpc('sp_admin_photo',{p_id:r.student_id});if(!isAdmin||gen!==reportGeneration)return;if(!data)throw Error('ไม่พบรูป');photoCache.set(r.student_id,data);currentPhoto={id:r.student_id,data};$('photoTitle').textContent=r.full_name;$('adminPhoto').src='data:image/jpeg;base64,'+data;$('photoDialog').showModal();}catch(e){adminError(e);}}
 $('closePhoto').onclick=()=>$('photoDialog').close();$('photoDialog').onclose=()=>{currentPhoto=null;$('adminPhoto').removeAttribute('src');};
 function download(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('downloadPhoto').onclick=()=>{if(!currentPhoto||!isAdmin)return;const b=Uint8Array.from(atob(currentPhoto.data),c=>c.charCodeAt(0));download(new Blob([b],{type:'image/jpeg'}),currentPhoto.id+'.jpg');};
 async function resetSubmission(r){if(!confirm('ลบข้อมูลและรูปที่ส่งของ '+r.full_name+' เพื่อเปิดให้ส่งใหม่หรือไม่?'))return;try{await rpc('sp_admin_reset',{p_id:r.student_id});await refresh();msg('adminMsg','เปิดให้ส่งใหม่แล้ว','success');}catch(e){adminError(e);}}
 function csv(rows,name){const quote=v=>{let s=String(v??'');if(/^[\s]*[=+\-@\t\r]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"';};download(new Blob(['\ufeff'+rows.map(r=>r.map(quote).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'}),name);}
 $('exportBtn').onclick=()=>{if(isAdmin&&activeRoom)csv([['เลขที่','เลขประจำตัว','ชื่อ-สกุล','ห้อง','ชื่อเล่น','เบอร์โทร','สถานะ','วันที่ส่ง'],...filtered.map(r=>[r.seat_no,r.student_id,r.full_name,r.room,r.nickname,r.phone,status(r),date(r.submitted_at)])],'student-report-'+activeRoom.replace(/[^\wก-๙-]/g,'_')+'.csv');};
-$('printBtn').onclick=()=>{if(isAdmin&&activeRoom)window.print();};
+// Dedicated print layout: 10 horizontal student rows per A4 portrait sheet.
+function printElement(tag,cls,text){const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=text;return el;}
+function clearPrintReport(){document.getElementById('printReport')?.remove();document.body.classList.remove('report-printing');}
+function buildPrintReport(rows,room){
+  clearPrintReport();
+  const root=printElement('div','print-report');root.id='printReport';
+  const pages=Math.max(1,Math.ceil(rows.length/10));
+  const group=roster.filter(r=>r.room===room);
+  const sent=group.filter(r=>r.submitted_at).length;
+  for(let i=0;i<pages;i++){
+    const page=printElement('section','print-sheet');
+    const heading=printElement('div','print-sheet-heading');
+    const left=printElement('div','print-heading-left');
+    left.append(printElement('h1','','รายงานข้อมูลนักเรียน • ห้อง '+room),printElement('div','print-school',cfg.schoolName||'ระบบส่งข้อมูลนักเรียน'));
+    const right=printElement('div','print-heading-right');
+    right.append(printElement('strong','','หน้า '+(i+1)+' / '+pages),printElement('div','','แสดง '+rows.length+' คน จาก '+group.length+' คน'));
+    heading.append(left,right);page.append(heading);
+    page.append(printElement('div','print-summary','ทั้งห้อง '+group.length+' คน  •  ส่งแล้ว '+sent+' คน  •  ยังไม่ส่ง '+(group.length-sent)+' คน'));
+    const list=printElement('div','print-list');
+    for(const r of rows.slice(i*10,i*10+10)){
+      const row=printElement('div','print-student');
+      const picture=printElement('div','print-picture');
+      const data=photoCache.get(r.student_id);
+      if(r.submitted_at&&data){const img=printElement('img');img.alt='รูปนักเรียน';img.src='data:image/jpeg;base64,'+data;picture.append(img);img.addEventListener('error',()=>picture.replaceChildren(printElement('span','','โหลดรูปไม่สำเร็จ')),{once:true});}
+      else picture.append(printElement('span','',r.submitted_at?'โหลดรูปไม่สำเร็จ':'ยังไม่ส่งรูป'));
+      const details=printElement('div','print-details');
+      details.append(printElement('div','print-name',r.full_name||'—'),printElement('div','print-meta','เลขที่ '+(r.seat_no??'—')+'  •  รหัส '+r.student_id+'  •  ห้อง '+r.room),printElement('div','print-meta','ชื่อเล่น: '+(r.nickname||'—')+'  •  โทร: '+(r.phone||'—')));
+      const state=printElement('div','print-state');
+      state.append(printElement('strong','print-state-label'+(r.submitted_at?' print-done':''),status(r)),printElement('div','print-date',r.submitted_at?'วันที่ส่ง '+date(r.submitted_at):'—'));
+      row.append(picture,details,state);list.append(row);
+    }
+    if(!rows.length)list.append(printElement('div','print-empty','ไม่พบข้อมูลนักเรียนตามตัวกรองที่เลือก'));
+    page.append(list,printElement('div','print-sheet-footer','Student Profile • รายงานสำหรับผู้ดูแลระบบ | ข้อมูลส่วนบุคคล'));
+    root.append(page);
+  }
+  document.body.append(root);document.body.classList.add('report-printing');return root;
+}
+$('printBtn').onclick=async()=>{
+  if(!isAdmin||!activeRoom||$('printBtn').disabled)return;
+  const generation=reportGeneration,room=activeRoom;
+  $('printBtn').disabled=true;
+  try{
+    const root=buildPrintReport([...filtered],room);
+    await Promise.all([...root.querySelectorAll('img')].map(img=>img.decode().catch(()=>{})));
+    if(!isAdmin||generation!==reportGeneration||room!==activeRoom){clearPrintReport();return;}
+    window.print();
+  }catch(e){clearPrintReport();adminError(e);}
+  finally{if(generation===reportGeneration)$('printBtn').disabled=false;}
+};
+window.addEventListener('afterprint',clearPrintReport);
+
 $('templateBtn').onclick=()=>csv([['student_id','full_name','room','seat_no'],['12345','เด็กชายตัวอย่าง ทดสอบ','401','1'],['12346','เด็กหญิงตัวอย่าง ทดสอบ','401','2']],'student-template.csv');
 $('codesBtn').onclick=()=>busy($('codesBtn'),async()=>{if(!isAdmin)return;const rows=await allRows('sp_admin_codes');if(!isAdmin)return;const room=$('roomFilter').value;csv([['student_id','full_name','room','seat_no','access_code'],...rows.filter(r=>!room||r.room===room).map(r=>[r.student_id,r.full_name,r.room,r.seat_no,r.access_code])],'PRIVATE-student-codes.csv');},adminError);
 function parseCSV(text){text=text.replace(/^\ufeff/,'');let rows=[],row=[],field='',quoted=false;for(let i=0;i<text.length;i++){let c=text[i];if(quoted){if(c==='"'){if(text[i+1]==='"'){field+='"';i++;}else quoted=false;}else field+=c;}else if(c==='"'&&field===''){quoted=true;}else if(c===','){row.push(field);field='';}else if(c==='\n'||c==='\r'){if(c==='\r'&&text[i+1]==='\n')i++;row.push(field);rows.push(row);row=[];field='';}else field+=c;}if(quoted)throw Error('ไฟล์ CSV มีเครื่องหมายคำพูดไม่ครบ');if(field||row.length){row.push(field);rows.push(row);}return rows.filter(r=>r.some(x=>x.trim()));}
